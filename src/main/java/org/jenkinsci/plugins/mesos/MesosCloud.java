@@ -52,6 +52,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 public class MesosCloud extends Cloud {
+  private String cloudId;
   private String nativeLibraryPath;
   private String master;
   private String description;
@@ -112,6 +113,7 @@ public class MesosCloud extends Cloud {
 
   @DataBoundConstructor
   public MesosCloud(
+      String cloudId,
       String nativeLibraryPath,
       String master,
       String description,
@@ -123,8 +125,10 @@ public class MesosCloud extends Cloud {
       boolean checkpoint,
       boolean onDemandRegistration,
       String jenkinsURL) throws NumberFormatException {
-    super("MesosCloud");
+    // Handler configuration from previous plugin version
+    super(cloudId != null ? cloudId : "MesosCloud");
 
+    this.cloudId = cloudId != null ? cloudId : "MesosCloud";
     this.nativeLibraryPath = nativeLibraryPath;
     this.master = master;
     this.description = description;
@@ -170,7 +174,7 @@ public class MesosCloud extends Cloud {
     }
 
     // Restart the scheduler if the master has changed or a scheduler is not up.
-    if (!master.equals(staticMaster) || !Mesos.getInstance(this).isSchedulerRunning()) {
+    if (!master.equals(staticMaster) || !Mesos.getInstance(this.name).isSchedulerRunning()) {
       if (!master.equals(staticMaster)) {
         LOGGER.info("Mesos master changed, restarting the scheduler");
         staticMaster = master;
@@ -178,10 +182,10 @@ public class MesosCloud extends Cloud {
         LOGGER.info("Scheduler was down, restarting the scheduler");
       }
 
-      Mesos.getInstance(this).stopScheduler();
-      Mesos.getInstance(this).startScheduler(jenkinsRootURL, this);
+      Mesos.getInstance(this.name).stopScheduler();
+      Mesos.getInstance(this.name).startScheduler(jenkinsRootURL, this);
     } else {
-      Mesos.getInstance(this).updateScheduler(jenkinsRootURL, this);
+      Mesos.getInstance(this.name).updateScheduler(jenkinsRootURL, this);
       LOGGER.info("Mesos master has not changed, leaving the scheduler running");
     }
 
@@ -199,7 +203,7 @@ public class MesosCloud extends Cloud {
           JenkinsScheduler.SUPERVISOR_LOCK.lock();
           try {
             LOGGER.fine("Checking if scheduler is running");
-            if (!Mesos.getInstance(this).isSchedulerRunning()) {
+            if (!Mesos.getInstance(this.name).isSchedulerRunning()) {
               restartMesos();
             }
           } finally {
@@ -259,6 +263,10 @@ public class MesosCloud extends Cloud {
       }
     }
     return false;
+  }
+
+  public String getCloudId() {
+    return cloudId;
   }
 
   public String getNativeLibraryPath() {
@@ -379,6 +387,7 @@ public void setJenkinsURL(String jenkinsURL) {
 
 @Extension
   public static class DescriptorImpl extends Descriptor<Cloud> {
+    private String cloudId;
     private String nativeLibraryPath;
     private String master;
     private String description;
@@ -400,6 +409,7 @@ public void setJenkinsURL(String jenkinsURL) {
     public boolean configure(StaplerRequest request, JSONObject object)
         throws FormException {
       LOGGER.info(object.toString());
+      cloudId = object.getString("cloudId");
       nativeLibraryPath = object.getString("nativeLibraryPath");
       master = object.getString("master");
       description = object.getString("description");
@@ -505,6 +515,13 @@ public void setJenkinsURL(String jenkinsURL) {
       }
       save();
       return super.configure(request, object);
+    }
+
+    public FormValidation doCheckName(@QueryParameter("cloudId") String cloudId) {
+      if (StringUtils.isBlank(cloudId)) {
+        return FormValidation.error("The Mesos cluster name is required");
+      }
+      return FormValidation.ok();
     }
 
     /**

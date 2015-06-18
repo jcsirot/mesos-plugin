@@ -56,7 +56,7 @@ public class MesosComputerLauncher extends ComputerLauncher {
     PrintStream logger = listener.getLogger();
 
     // Get a handle to mesos.
-    Mesos mesos = Mesos.getInstance(cloud);
+    Mesos mesos = Mesos.getInstance(cloud.getCloudId());
 
     // If Jenkins scheduler is not running, terminate the node.
     // This might happen if the computer was offline when Jenkins was shutdown.
@@ -114,7 +114,7 @@ public class MesosComputerLauncher extends ComputerLauncher {
    */
   public void terminate() {
     // Get a handle to mesos.
-    Mesos mesos = Mesos.getInstance(cloud);
+    Mesos mesos = Mesos.getInstance(cloud.getCloudId());
 
     mesos.stopJenkinsSlave(name);
   }

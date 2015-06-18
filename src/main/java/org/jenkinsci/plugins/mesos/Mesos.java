@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public abstract class Mesos {
-  private static Map<MesosCloud, Mesos> clouds = new HashMap<MesosCloud, Mesos>();
+  private static Map<String, Mesos> clouds = new HashMap<String, Mesos>();
 
   public static class JenkinsSlave {
     String name;
@@ -90,7 +90,7 @@ public abstract class Mesos {
   /**
    * @return the mesos implementation instance for the cloud instances (since there might be more than one
    */
-  public static synchronized Mesos getInstance(MesosCloud key) {
+  public static synchronized Mesos getInstance(String key) {
     if (!clouds.containsKey(key)) {
       clouds.put(key, new MesosImpl());
     }
